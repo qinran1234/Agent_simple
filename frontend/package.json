@@ -9,16 +9,19 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "axios": "^1.6.2",
+    "highlight.js": "^11.11.1",
+    "marked": "^16.0.0",
     "vue": "^3.3.8",
-    "axios": "^1.6.2"
+    "vue-markdown-render": "^2.2.1"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^4.5.0",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32",
+    "tailwindcss": "^3.3.6",
     "typescript": "^5.2.2",
     "vite": "^5.0.0",
-    "vue-tsc": "^1.8.22",
-    "tailwindcss": "^3.3.6",
-    "autoprefixer": "^10.4.16",
-    "postcss": "^8.4.32"
+    "vue-tsc": "^1.8.22"
   }
-} 
+}

@@ -17,6 +17,19 @@ echo.
 echo 按 Ctrl+C 终止服务器
 echo.
 
-npm run dev
+start "前端服务" cmd /k "chcp 65001 > nul && echo 启动前端开发服务器... && npm run dev"
 
-pause 
+echo.
+echo 4. 等待服务器启动...
+timeout /t 5 /nobreak > nul
+
+echo.
+echo 5. 自动打开浏览器...
+start http://localhost:5173
+
+echo.
+echo 前端服务已启动并自动打开浏览器！
+echo 如需手动打开，请访问: http://localhost:5173
+echo.
+echo 按任意键退出...
+pause > nul 
