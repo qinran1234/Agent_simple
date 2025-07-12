@@ -1,0 +1,25 @@
+# FastAPI相关
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+
+# 环境变量和HTTP请求
+python-dotenv>=1.0.0
+httpx>=0.25.0
+requests>=2.31.0
+
+# AI和语言模型
+langchain-deepseek>=0.0.1
+langchain>=0.1.0
+
+# 数据处理和验证
+pydantic>=2.5.0
+
+# 时间处理
+pytz>=2023.3
+
+# 可选：天气API支持
+# 如果需要天气功能，请配置OPENWEATHER_API_KEY
+
+# 可选：翻译API支持
+# 使用MyMemory免费API，无需额外依赖 

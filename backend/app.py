@@ -1,176 +1,62 @@
 """
-简化的应用文件，避免相对导入问题
+FastAPI 应用主文件
 """
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import List, Dict, Any
-import os
+from typing import List, Dict, Any, Optional
 import json
-import asyncio
-from dotenv import load_dotenv
-from langchain_deepseek import ChatDeepSeek
-from langchain.schema import HumanMessage, AIMessage
-from langchain.memory import ConversationBufferMemory
 
-# 加载环境变量
-try:
-    load_dotenv()
-except UnicodeDecodeError as e:
-    print(f"Error loading .env file: {e}")
-    print("Please run fix_env.py to fix the encoding issue")
-    raise
-except Exception as e:
-    print(f"Error loading .env file: {e}")
-    print("Please check if .env file exists and has correct format")
-    raise
+# 导入配置和Agent
+from config import settings
+from agent import AIAgent
+from tools.base import ToolResult
 
 # 数据模型
 class ChatMessage(BaseModel):
     message: str
+    use_tools: Optional[bool] = True
 
 class ChatResponse(BaseModel):
     response: str
     conversation_history: List[dict]
+    tools_used: Optional[List[dict]] = None
 
 class ClearResponse(BaseModel):
     message: str
 
-# 配置
-class Settings:
-    DEEPSEEK_API_KEY: str = os.getenv("DEEPSEEK_API_KEY", "")
-    DEEPSEEK_MODEL: str = "deepseek-chat"
-    DEEPSEEK_TEMPERATURE: float = 0.7
-    DEEPSEEK_MAX_TOKENS: int = 1000
-    ALLOWED_ORIGINS: list = [
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000"
-    ]
-    
-    @classmethod
-    def validate_config(cls):
-        if not cls.DEEPSEEK_API_KEY:
-            raise ValueError("DeepSeek API密钥未配置，请在.env文件中设置DEEPSEEK_API_KEY")
-
-settings = Settings()
-
-# AI服务类
-class AIService:
-    def __init__(self):
-        self.memory = ConversationBufferMemory()
-        self._chat_model = None
-    
-    @property
-    def chat_model(self):
-        if self._chat_model is None:
-            self._chat_model = ChatDeepSeek(
-                model=settings.DEEPSEEK_MODEL,
-                temperature=settings.DEEPSEEK_TEMPERATURE,
-                max_tokens=settings.DEEPSEEK_MAX_TOKENS,
-                api_key=settings.DEEPSEEK_API_KEY
-            )
-        return self._chat_model
-    
-    def _convert_messages_to_dict(self, messages: List) -> List[Dict[str, str]]:
-        result = []
-        for msg in messages:
-            if isinstance(msg, HumanMessage):
-                result.append({"role": "user", "content": msg.content})
-            elif isinstance(msg, AIMessage):
-                result.append({"role": "assistant", "content": msg.content})
-        return result
-    
-    def _convert_memory_to_history(self) -> List[Dict[str, str]]:
-        history = self.memory.chat_memory.messages
-        return self._convert_messages_to_dict(history)
-    
-    async def chat(self, user_message: str) -> Dict[str, Any]:
-        try:
-            # 获取对话历史
-            history = self.memory.chat_memory.messages
-            
-            # 构建完整的对话上下文
-            context = ""
-            for msg in history:
-                if isinstance(msg, HumanMessage):
-                    context += f"用户: {msg.content}\n"
-                elif isinstance(msg, AIMessage):
-                    context += f"助手: {msg.content}\n"
-            
-            # 添加当前用户消息
-            context += f"用户: {user_message}\n助手:"
-            
-            # 调用ChatDeepSeek
-            messages = [
-                ("human", user_message)
-            ]
-            response = await self.chat_model.ainvoke(messages)
-            ai_response = response.content
-            
-            # 保存到记忆
-            self.memory.chat_memory.add_user_message(user_message)
-            self.memory.chat_memory.add_ai_message(ai_response)
-            
-            # 获取更新后的对话历史
-            conversation_history = self._convert_memory_to_history()
-            
-            return {
-                "response": ai_response,
-                "conversation_history": conversation_history
-            }
-        except Exception as e:
-            raise Exception(f"AI服务处理错误: {str(e)}")
-    
-    async def chat_stream(self, user_message: str):
-        """流式聊天方法"""
-        try:
-            # 保存用户消息到记忆
-            self.memory.chat_memory.add_user_message(user_message)
-            
-            # 调用ChatDeepSeek进行流式输出
-            messages = [
-                ("human", user_message)
-            ]
-            
-            # 使用astream方法进行流式输出
-            full_response = ""
-            async for chunk in self.chat_model.astream(messages):
-                if hasattr(chunk, 'content') and chunk.content:
-                    content = chunk.content
-                    full_response += content
-                    # 发送每个字符
-                    for char in content:
-                        yield f"data: {json.dumps({'content': char, 'type': 'content'})}\n\n"
-                        await asyncio.sleep(0.01)  # 控制输出速度
-            
-            # 保存AI回复到记忆
-            self.memory.chat_memory.add_ai_message(full_response)
-            
-            # 发送完成信号
-            yield f"data: {json.dumps({'type': 'done'})}\n\n"
-            
-        except Exception as e:
-            error_msg = f"AI服务处理错误: {str(e)}"
-            yield f"data: {json.dumps({'content': error_msg, 'type': 'error'})}\n\n"
-    
-    def clear_memory(self):
-        self.memory.clear()
-    
-    def get_conversation_history(self) -> List[Dict[str, str]]:
-        return self._convert_memory_to_history()
+class ToolCall(BaseModel):
+    tool_name: str
+    parameters: Dict[str, Any]
 
 # 创建应用
 app = FastAPI(
-    title="智能对话Agent API",
-    description="基于DeepSeek API的智能对话助手",
-    version="1.0.0",
+    title=settings.APP_TITLE,
+    description=settings.APP_DESCRIPTION,
+    version=settings.APP_VERSION,
     docs_url="/docs",
     redoc_url="/redoc"
 )
+
+# 设置JSON编码
+from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
+import json
+
+# 自定义JSON响应类
+class UTF8JSONResponse(JSONResponse):
+    def render(self, content) -> bytes:
+        return json.dumps(
+            content,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            default=str
+        ).encode("utf-8")
+
+# 设置默认响应类
+app.default_response_class = UTF8JSONResponse
 
 # 设置CORS
 app.add_middleware(
@@ -181,21 +67,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 全局AI服务实例
-ai_service = AIService()
-
-# 验证配置
-try:
-    settings.validate_config()
-except ValueError as e:
-    print(f"配置错误: {e}")
-    print("请在backend/.env文件中设置DEEPSEEK_API_KEY")
+# 全局AI Agent实例
+ai_agent = AIAgent()
 
 @app.get("/")
 async def root():
     return {
         "message": "智能对话Agent API 运行中",
-        "version": "1.0.0",
+        "version": settings.APP_VERSION,
         "docs": "/docs"
     }
 
@@ -206,7 +85,12 @@ async def health_check():
 @app.post("/chat/", response_model=ChatResponse)
 async def chat(chat_message: ChatMessage):
     try:
-        result = await ai_service.chat(chat_message.message)
+        # 添加日志查看接收到的消息
+        print(f"收到用户消息: {chat_message.message}")
+        print(f"消息类型: {type(chat_message.message)}")
+        
+        use_tools = chat_message.use_tools if chat_message.use_tools is not None else True
+        result = await ai_agent.chat(chat_message.message, use_tools)
         return ChatResponse(**result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -215,8 +99,13 @@ async def chat(chat_message: ChatMessage):
 async def chat_stream(chat_message: ChatMessage):
     """流式聊天端点"""
     try:
+        # 添加日志查看接收到的消息
+        print(f"[流式] 收到用户消息: {chat_message.message}")
+        print(f"[流式] 消息类型: {type(chat_message.message)}")
+        
+        use_tools = chat_message.use_tools if chat_message.use_tools is not None else True
         return StreamingResponse(
-            ai_service.chat_stream(chat_message.message),
+            ai_agent.chat_stream(chat_message.message, use_tools),
             media_type="text/plain",
             headers={
                 "Cache-Control": "no-cache",
@@ -230,7 +119,7 @@ async def chat_stream(chat_message: ChatMessage):
 @app.post("/chat/clear", response_model=ClearResponse)
 async def clear_conversation():
     try:
-        ai_service.clear_memory()
+        ai_agent.clear_memory()
         return ClearResponse(message="对话历史已清空")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -238,7 +127,25 @@ async def clear_conversation():
 @app.get("/chat/history")
 async def get_conversation_history():
     try:
-        history = ai_service.get_conversation_history()
+        history = ai_agent.get_conversation_history()
         return {"conversation_history": history}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/tools")
+async def get_available_tools():
+    """获取可用工具列表"""
+    try:
+        tools = ai_agent.tool_manager.get_available_tools()
+        return {"tools": tools}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/tools/execute")
+async def execute_tool(tool_call: ToolCall):
+    """执行工具"""
+    try:
+        result = await ai_agent.tool_manager.execute_tool(tool_call.tool_name, tool_call.parameters)
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) 
