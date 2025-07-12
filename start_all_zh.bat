@@ -1,0 +1,24 @@
+@echo off
+chcp 65001 > nul
+echo ================================
+echo 一键启动前后端服务
+echo ================================
+echo.
+
+echo 1. 启动后端服务...
+start "后端服务" cmd /k "chcp 65001 > nul && echo 启动后端... && call conda activate agent_env && cd backend && python start.py"
+echo.
+
+echo 2. 启动前端服务...
+start "前端服务" cmd /k "chcp 65001 > nul && echo 启动前端... && cd frontend && npm install && npm run dev"
+echo.
+
+echo ================================
+echo 所有服务已启动！
+echo 后端: http://localhost:8000
+echo 前端: http://localhost:5173
+echo ================================
+echo.
+echo 如需关闭服务，请手动关闭对应窗口。
+echo 按任意键退出本窗口...
+pause > nul 
