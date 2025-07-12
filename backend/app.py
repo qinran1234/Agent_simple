@@ -4,9 +4,12 @@
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List, Dict, Any
 import os
+import json
+import asyncio
 from dotenv import load_dotenv
 from langchain_deepseek import ChatDeepSeek
 from langchain.schema import HumanMessage, AIMessage
@@ -122,6 +125,38 @@ class AIService:
         except Exception as e:
             raise Exception(f"AI服务处理错误: {str(e)}")
     
+    async def chat_stream(self, user_message: str):
+        """流式聊天方法"""
+        try:
+            # 保存用户消息到记忆
+            self.memory.chat_memory.add_user_message(user_message)
+            
+            # 调用ChatDeepSeek进行流式输出
+            messages = [
+                ("human", user_message)
+            ]
+            
+            # 使用astream方法进行流式输出
+            full_response = ""
+            async for chunk in self.chat_model.astream(messages):
+                if hasattr(chunk, 'content') and chunk.content:
+                    content = chunk.content
+                    full_response += content
+                    # 发送每个字符
+                    for char in content:
+                        yield f"data: {json.dumps({'content': char, 'type': 'content'})}\n\n"
+                        await asyncio.sleep(0.01)  # 控制输出速度
+            
+            # 保存AI回复到记忆
+            self.memory.chat_memory.add_ai_message(full_response)
+            
+            # 发送完成信号
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            
+        except Exception as e:
+            error_msg = f"AI服务处理错误: {str(e)}"
+            yield f"data: {json.dumps({'content': error_msg, 'type': 'error'})}\n\n"
+    
     def clear_memory(self):
         self.memory.clear()
     
@@ -173,6 +208,22 @@ async def chat(chat_message: ChatMessage):
     try:
         result = await ai_service.chat(chat_message.message)
         return ChatResponse(**result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/chat/stream")
+async def chat_stream(chat_message: ChatMessage):
+    """流式聊天端点"""
+    try:
+        return StreamingResponse(
+            ai_service.chat_stream(chat_message.message),
+            media_type="text/plain",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "Content-Type": "text/event-stream",
+            }
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

@@ -90,7 +90,7 @@
                   <p class="text-sm whitespace-pre-wrap">{{ message.content }}</p>
                 </div>
               </div>
-              
+
               <!-- AI回复 -->
               <div v-else class="flex items-start space-x-2 max-w-2xl">
                 <div class="flex-shrink-0 w-8 h-8 bg-gradient-to-r from-green-500 to-green-600 rounded-full flex items-center justify-center shadow-md">
@@ -98,22 +98,6 @@
                 </div>
                 <div class="bg-white dark:bg-gray-700 text-gray-800 dark:text-white px-4 py-2 rounded-xl rounded-tl-sm shadow-md border border-gray-100 dark:border-gray-600">
                   <div class="text-sm markdown-content" v-html="renderMarkdown(message.content)"></div>
-                </div>
-              </div>
-            </div>
-            
-            <!-- 加载状态 -->
-            <div v-if="loading" class="flex justify-start animate-fade-in">
-              <div class="flex items-start space-x-2">
-                <div class="flex-shrink-0 w-8 h-8 bg-gradient-to-r from-green-500 to-green-600 rounded-full flex items-center justify-center shadow-md">
-                  <span class="text-white text-xs font-medium">AI</span>
-                </div>
-                <div class="bg-white dark:bg-gray-700 px-4 py-2 rounded-xl rounded-tl-sm shadow-md border border-gray-100 dark:border-gray-600">
-                  <div class="flex space-x-1">
-                    <div class="w-1 h-1 bg-blue-500 rounded-full animate-bounce"></div>
-                    <div class="w-1 h-1 bg-blue-500 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
-                    <div class="w-1 h-1 bg-blue-500 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
-                  </div>
                 </div>
               </div>
             </div>
@@ -166,6 +150,8 @@ import { ref, nextTick, onMounted } from 'vue'
 import axios from 'axios'
 import { marked } from 'marked'
 
+const API_BASE_URL = 'http://localhost:8000'
+
 interface Message {
   role: 'user' | 'assistant'
   content: string
@@ -175,8 +161,6 @@ const messages = ref<Message[]>([])
 const inputMessage = ref('')
 const loading = ref(false)
 const chatContainer = ref<HTMLElement>()
-
-const API_BASE_URL = 'http://localhost:8000'
 
 // 渲染Markdown
 const renderMarkdown = (content: string): string => {
@@ -221,20 +205,77 @@ const sendMessage = async () => {
   loading.value = true
 
   try {
-    const response = await axios.post(`${API_BASE_URL}/chat/`, {
-      message: userMessage
+    // 添加一个空的AI消息用于流式输出
+    const aiMessageIndex = messages.value.length
+    messages.value.push({
+      role: 'assistant',
+      content: ''
     })
 
-    messages.value.push({
-      role: 'assistant',
-      content: response.data.response
+    // 使用流式API
+    const response = await fetch(`${API_BASE_URL}/chat/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ message: userMessage })
     })
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
+    const reader = response.body?.getReader()
+    if (!reader) {
+      throw new Error('无法获取响应流')
+    }
+
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(line.slice(6))
+            
+            if (data.type === 'content' && data.content) {
+              // 逐字添加内容
+              messages.value[aiMessageIndex].content += data.content
+              await scrollToBottom()
+            } else if (data.type === 'done') {
+              // 流式输出完成
+              break
+            } else if (data.type === 'error') {
+              messages.value[aiMessageIndex].content = data.content || '发生错误'
+              break
+            }
+          } catch (e) {
+            console.error('解析流数据失败:', e)
+          }
+        }
+      }
+    }
+
   } catch (error) {
     console.error('发送消息失败:', error)
-    messages.value.push({
-      role: 'assistant',
-      content: '抱歉，发生了错误，请稍后重试。'
-    })
+    // 如果AI消息还没有内容，添加错误消息
+    if (messages.value[messages.value.length - 1]?.role === 'assistant' && 
+        messages.value[messages.value.length - 1]?.content === '') {
+      messages.value[messages.value.length - 1].content = '抱歉，发生了错误，请稍后重试。'
+    } else {
+      messages.value.push({
+        role: 'assistant',
+        content: '抱歉，发生了错误，请稍后重试。'
+      })
+    }
   } finally {
     loading.value = false
     await scrollToBottom()
