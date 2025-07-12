@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+  <div class="h-[90vh] bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
     <!-- 背景装饰 - 进一步缩小高度 -->
     <div class="fixed inset-0 overflow-hidden pointer-events-none">
       <div class="absolute -top-10 -right-10 w-32 h-32 bg-blue-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
@@ -8,7 +8,7 @@
     </div>
 
     <div class="relative z-10 container mx-auto px-2 py-2">
-      <!-- 标题区域 - 缩小 -->
+      <!-- 标题区域 - 恢复大小 -->
       <div class="text-center mb-2">
         <div class="inline-flex items-center justify-center w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg mb-1 shadow-lg">
           <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -27,15 +27,15 @@
         </div>
       </div>
 
-      <!-- 聊天容器 - 大幅增大 -->
+      <!-- 聊天容器 - 设置为580px -->
       <div class="max-w-5xl mx-auto">
         <div class="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-xl shadow-lg border border-white/20 dark:border-gray-700/50 overflow-hidden">
-          <!-- 聊天消息区域 - 大幅增大高度 -->
+          <!-- 聊天消息区域 - 580px高度 -->
           <div 
             ref="chatContainer"
-            class="h-[600px] overflow-y-auto p-4 space-y-3 scroll-smooth"
+            class="h-[580px] overflow-y-auto p-4 space-y-3 scroll-smooth"
           >
-            <!-- 欢迎消息 - 大幅增大 -->
+            <!-- 欢迎消息 - 恢复大小 -->
             <div v-if="messages.length === 0" class="text-center py-8">
               <div class="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
                 <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -45,7 +45,7 @@
               <h3 class="text-xl font-semibold text-gray-800 dark:text-white mb-2">欢迎使用智能对话助手</h3>
               <p class="text-gray-600 dark:text-gray-400 mb-6 text-sm">我可以帮助您解答问题、编写代码、分析数据等</p>
               <div class="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mx-auto">
-                <div class="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/50 dark:to-blue-800/50 p-4 rounded-xl border border-blue-200 dark:border-blue-700 shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105">
+                <div class="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/50 dark:to-blue-800/50 p-5 rounded-xl border border-blue-200 dark:border-blue-700 shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105 min-h-[120px] flex flex-col items-center justify-center text-center">
                   <div class="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center mb-3">
                     <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
@@ -54,7 +54,7 @@
                   <h4 class="font-semibold text-gray-800 dark:text-white text-sm mb-1">代码编写</h4>
                   <p class="text-xs text-gray-600 dark:text-gray-400">Python、JavaScript等</p>
                 </div>
-                <div class="bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/50 dark:to-purple-800/50 p-4 rounded-xl border border-purple-200 dark:border-purple-700 shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105">
+                <div class="bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/50 dark:to-purple-800/50 p-5 rounded-xl border border-purple-200 dark:border-purple-700 shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105 min-h-[120px] flex flex-col items-center justify-center text-center">
                   <div class="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center mb-3">
                     <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
@@ -63,7 +63,7 @@
                   <h4 class="font-semibold text-gray-800 dark:text-white text-sm mb-1">数据分析</h4>
                   <p class="text-xs text-gray-600 dark:text-gray-400">图表、统计等</p>
                 </div>
-                <div class="bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/50 dark:to-green-800/50 p-4 rounded-xl border border-green-200 dark:border-green-700 shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105">
+                <div class="bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/50 dark:to-green-800/50 p-5 rounded-xl border border-green-200 dark:border-green-700 shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105 min-h-[120px] flex flex-col items-center justify-center text-center">
                   <div class="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center mb-3">
                     <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
